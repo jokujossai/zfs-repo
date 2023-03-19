@@ -43,10 +43,7 @@ kmod-zfs: src/zfs-$(ZFS_VERSION).tar.gz src/kernel-$(KERNEL_VERSION).rpm src/ker
 		&& ./autogen.sh \
 		&& ./configure \
 		&& make -j`nproc` rpm-kmod
-	cp /tmp/zfs-$(ZFS_VERSION)/kmod-zfs-*.rpm rpm/
+	cp /tmp/zfs-$(ZFS_VERSION)/*.rpm rpm/
 	dnf install -y -q createrepo
 	createrepo rpm
-	mv rpm/repodata/* rpm/
-	rmdir rpm/repodata
-	sed -i 's#repodata/##' rpm/repomd.xml
 
