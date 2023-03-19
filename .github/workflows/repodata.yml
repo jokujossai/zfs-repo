@@ -1,0 +1,51 @@
+name: Update repodata
+
+on:
+  workflow_dispatch: {}
+  workflow_run:
+    workflows: [Release RPM]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  repodata:
+    name: Update repodata
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora-toolbox:37
+    concurrency:
+      group: repodata
+      cancel-in-progress: true
+
+    steps:
+      - name: Install dependencies
+        run: dnf install -y -q createrepo gh jq
+      - name: Fetch releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          releases="$(gh api "repos/${{ github.repository }}/releases" | jq -r ".[].id")"
+          for release in $releases
+          do
+            tag="$(gh api "repos/${{ github.repository }}/releases/$release" | jq -r ".tag_name")"
+            echo "Tag: $tag"
+            mkdir -p "$tag"
+            gh release download "$tag" -R "${{ github.repository }}" -D "$tag" -p '*.rpm'
+          done
+      - name: Create repo
+        run: createrepo .
+      # TODO: Sign
+      - name: Repo file
+        run: |
+          echo "[zfs-kmod]" > repodata/zfs-kmod.repo
+          echo "name=ZFS kmod" >> repodata/zfs-kmod.repo
+          echo 'baseurl=${{ github.server_url }}/${{ github.repository }}/releases/download/' >> repodata/zfs-kmod.repo
+          echo "enabled=1" >> repodata/zfs-kmod.repo
+          echo "gpgcheck=0" >> repodata/zfs-kmod.repo
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Repodata"
+          tag_name: "repodata"
+          files: repodata/*
