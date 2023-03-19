@@ -31,18 +31,23 @@ jobs:
             tag="$(gh api "repos/${{ github.repository }}/releases/$release" | jq -r ".tag_name")"
             echo "Tag: $tag"
             mkdir -p "$tag"
-            gh release download "$tag" -R "${{ github.repository }}" -D "$tag" -p '*.rpm'
+            gh release download "$tag" -R "${{ github.repository }}" -D "$tag" -p '*.rpm' || true
           done
       - name: Create repo
         run: createrepo .
-      # TODO: Sign
+      - name: Sign repomd
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
+          gpg --detach-sign --armor repodata/repomd.xml
+          gpg --export --armor > repodata/zfs-repo.gpg
       - name: Repo file
         run: |
           echo "[zfs-kmod]" > repodata/zfs-kmod.repo
           echo "name=ZFS kmod" >> repodata/zfs-kmod.repo
           echo 'baseurl=${{ github.server_url }}/${{ github.repository }}/releases/download/' >> repodata/zfs-kmod.repo
           echo "enabled=1" >> repodata/zfs-kmod.repo
-          echo "gpgcheck=0" >> repodata/zfs-kmod.repo
+          echo "gpgcheck=1" >> repodata/zfs-kmod.repo
+          echo "gpgkey=${{ github.server_url }}/${{ github.repository }}/releases/download/repodata/zfs-repo.gpg"
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
