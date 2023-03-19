@@ -1,0 +1,109 @@
+name: Release RPM
+
+on:
+  workflow_dispatch:
+    inputs:
+      zfsVersion:
+        description: 'ZFS version'
+        required: true
+        type: string
+      fedoraRelease:
+        description: 'Fedora release'
+        required: true
+        default: 37
+        type: int
+      kernelVersion:
+        description: 'Kernel version'
+        required: true
+        type: string
+      kernelRelease:
+        description: 'Kernel release'
+        required: true
+        type: int
+
+permissions:
+  contents: write
+
+jobs:
+  build-rpm:
+    name: Build RPM
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora-toolbox:${{ inputs.fedoraRelease }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          dnf install -y -q --skip-broken \
+            https://kojipkgs.fedoraproject.org//packages/kernel/${{ inputs.kernelVersion }}/${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}/x86_64/kernel-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64.rpm \
+            https://kojipkgs.fedoraproject.org//packages/kernel/${{ inputs.kernelVersion }}/${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}/x86_64/kernel-core-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64.rpm \
+            https://kojipkgs.fedoraproject.org//packages/kernel/${{ inputs.kernelVersion }}/${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}/x86_64/kernel-devel-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64.rpm \
+            https://kojipkgs.fedoraproject.org//packages/kernel/${{ inputs.kernelVersion }}/${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}/x86_64/kernel-modules-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64.rpm \
+            https://kojipkgs.fedoraproject.org//packages/kernel/${{ inputs.kernelVersion }}/${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}/x86_64/kernel-modules-core-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64.rpm
+          rpm -qa | grep -q kernel-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64
+          dnf install -y -q --skip-broken epel-release gcc make autoconf automake libtool rpm-build libtirpc-devel libblkid-devel libuuid-devel libudev-devel openssl-devel zlib-devel libaio-devel libattr-devel elfutils-libelf-devel python3 python3-devel python3-setuptools python3-cffi libffi-devel git ncompress libcurl-devel
+          dnf install -y -q --skip-broken --enablerepo=epel --enablerepo=powertools python3-packaging
+      - name: Download source
+        run: curl -Lfs -O https://github.com/openzfs/zfs/releases/download/zfs-${{ inputs.zfsVersion }}/zfs-${{ inputs.zfsVersion }}.tar.gz
+      - name: Extract sources
+        run: tar -xzf zfs-${{ inputs.zfsVersion }}.tar.gz
+      - name: Build
+        run: |
+          cd zfs-${{ inputs.zfsVersion }} \
+            && ./autogen.sh \
+            && ./configure \
+            && make rpm-kmod
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Fedora ${{ inputs.fedoraRelease }}, ZFS ${{ inputs.zfsVersion }}, kernel ${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}"
+          tag_name: "zfs-${{ inputs.zfsVersion }}_kernel-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64"
+          files: zfs-${{ inputs.zfsVersion }}/*.rpm
+
+  repodata:
+    name: Update repodata
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora-toolbox:${{ inputs.fedoraRelease }}
+    needs: build-rpm
+    concurrency:
+      group: repodata
+      cancel-in-progress: true
+
+    steps:
+      - name: Install dependencies
+        run: dnf install -y -q createrepo gh
+      - name: Fetch releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          releases="$(gh api repos/${{ github.repository }}/releases | jq -r ".[].id")"
+          for release in $releases
+          do
+            tag="$(gh api repos/${{ github.repository }}/releases/$release | jq -r ".tag_name")"
+            mkdir -p $tag
+            assets="$(gh api repos/${{ github.repository }}/releases/$release | jq -r ".assets[].id")"
+            for asset in $assets
+            do
+              name="$(gh api repos/jokujossai/zfs-rpm/releases/assets/$asset | jq -r ".name")"
+              url="$(gh api repos/jokujossai/zfs-rpm/releases/assets/$asset | jq -r ".browser_download_url")"
+              curl -Lsf -o "$tag/$name" "$url"
+            done
+          done
+      - name: Create repo
+        run: createrepo repo
+      # TODO: Sign
+      - name: Repo file
+        run: |
+          echo "[zfs-kmod]" > repodata/zfs-kmod.repo
+          echo "name=ZFS kmod $releasever" >> repodata/zfs-kmod.repo
+          echo 'baseurl=${{ github.server_url }}/${{ github.repository }}/releases/download/' >> repodata/zfs-kmod.repo
+          echo "enabled=1" >> repodata/zfs-kmod.repo
+          echo "gpgcheck=0" >> repodata/zfs-kmod.repo
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Repodata"
+          tag_name: "repodata"
+          files: repodata/*
+
