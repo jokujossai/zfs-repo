@@ -47,7 +47,7 @@ jobs:
           echo 'baseurl=${{ github.server_url }}/${{ github.repository }}/releases/download/' >> repodata/zfs-kmod.repo
           echo "enabled=1" >> repodata/zfs-kmod.repo
           echo "gpgcheck=1" >> repodata/zfs-kmod.repo
-          echo "gpgkey=${{ github.server_url }}/${{ github.repository }}/releases/download/repodata/zfs-repo.gpg"
+          echo "gpgkey=${{ github.server_url }}/${{ github.repository }}/releases/download/repodata/zfs-repo.gpg" >> repodata/zfs-kmod.repo
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
