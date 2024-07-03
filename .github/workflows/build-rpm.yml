@@ -47,6 +47,18 @@ jobs:
         run: curl -Lfs -O https://github.com/openzfs/zfs/releases/download/zfs-${{ inputs.zfsVersion }}/zfs-${{ inputs.zfsVersion }}.tar.gz
       - name: Extract sources
         run: tar -xzf zfs-${{ inputs.zfsVersion }}.tar.gz
+      - name: Get patches
+        uses: actions/checkout@v3
+        with:
+          sparse-checkout: |
+            *.patch
+      - name: Apply patches
+        run: |
+          for patch in *.patch
+          do
+            patch -p1 -d zfs-${{ inputs.zfsVersion }} < $patch
+            [[ $? -eq 0 ]] || exit 1
+          done
       - name: Build
         run: |
           cd zfs-${{ inputs.zfsVersion }} \

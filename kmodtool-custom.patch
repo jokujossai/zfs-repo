@@ -1,0 +1,23 @@
+diff --git a/scripts/kmodtool b/scripts/kmodtool
+--- a/scripts/kmodtool
++++ b/scripts/kmodtool
+@@ -125,9 +125,8 @@ EOF
+ 
+ print_rpmtemplate_per_kmodpkg ()
+ {
+ 	if [[ "${1}" = "--custom" ]]; then
+ 		shift
+-		local customkernel=true
+ 	elif [[ "${1}" = "--redhat" ]]; then
+ 		# this is needed for akmods
+ 		shift
+@@ -213,9 +213,8 @@ EOF
+ 
+ print_rpmtemplate_kmoddevelpkg ()
+ {
+ 	if [[ "${1}" = "--custom" ]]; then
+ 		shift
+-		local customkernel=true
+ 	elif [[ "${1}" = "--redhat" ]]; then
+ 		shift
+ 		local redhatkernel=true
