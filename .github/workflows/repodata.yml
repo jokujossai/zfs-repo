@@ -32,7 +32,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          releases="$(gh api "repos/${{ github.repository }}/releases" | jq -r ".[].id")"
+          releases="$(gh api "repos/${{ github.repository }}/releases" --paginate | jq -r ".[].id")"
           for release in $releases
           do
             tag="$(gh api "repos/${{ github.repository }}/releases/$release" | jq -r ".tag_name")"
@@ -62,7 +62,7 @@ jobs:
         run: |
           release="$(gh api "repos/${{ github.repository }}/releases/tags/repodata" | jq -r ".id")"
           echo "Release id: $release"
-          assets="$(gh api "repos/${{ github.repository }}/releases/$release/assets" | jq -r ".[].id")"
+          assets="$(gh api "repos/${{ github.repository }}/releases/$release/assets" --paginate | jq -r ".[].id")"
           for asset in $assets
           do
             name="$(gh api "repos/${{ github.repository }}/releases/assets/$asset" | jq -r ".name")"
