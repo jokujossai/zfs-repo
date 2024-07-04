@@ -48,9 +48,15 @@ jobs:
           echo "enabled=1" >> repodata/zfs-kmod.repo
           echo "gpgcheck=1" >> repodata/zfs-kmod.repo
           echo "gpgkey=${{ github.server_url }}/${{ github.repository }}/releases/download/repodata/zfs-repo.gpg" >> repodata/zfs-kmod.repo
+      - name: Remove old files
+        uses: andreaswilli/delete-release-assets-action@4
+        with:
+          github_token: ${{ github.token }}
+          tag: "repodata"
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           name: "Repodata"
           tag_name: "repodata"
           files: repodata/*
+          make_latest: "true"
