@@ -10,7 +10,7 @@ on:
       fedoraRelease:
         description: 'Fedora release'
         required: true
-        default: 37
+        default: 40
         type: int
       kernelVersion:
         description: 'Kernel version'

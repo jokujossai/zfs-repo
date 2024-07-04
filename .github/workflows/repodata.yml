@@ -1,7 +1,14 @@
 name: Update repodata
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      fedoraRelease:
+        description: 'Fedora release'
+        required: true
+        default: 40
+        type: int
+
   workflow_run:
     workflows: [Release RPM]
     types: [completed]
@@ -13,7 +20,7 @@ jobs:
   repodata:
     name: Update repodata
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora-toolbox:37
+    container: registry.fedoraproject.org/fedora-toolbox:${{ inputs.fedoraRelease }}
     concurrency:
       group: repodata
       cancel-in-progress: true
@@ -29,6 +36,7 @@ jobs:
           for release in $releases
           do
             tag="$(gh api "repos/${{ github.repository }}/releases/$release" | jq -r ".tag_name")"
+            if [[ "$tag" = "repodata" ]]; then continue; fi
             echo "Tag: $tag"
             mkdir -p "$tag"
             gh release download "$tag" -R "${{ github.repository }}" -D "$tag" -p '*.rpm' || true
@@ -53,9 +61,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           release="$(gh api "repos/${{ github.repository }}/releases/tags/repodata" | jq -r ".id")"
+          echo "Release id: $release"
           assets="$(gh api "repos/${{ github.repository }}/releases/$release/assets" | jq -r ".[].id")"
           for asset in $assets
           do
+            name="$(gh api "repos/${{ github.repository }}/releases/assets/$asset" | jq -r ".name")"
+            echo "Deleting asset $name"
             gh api "repos/${{ github.repository }}/releases/assets/$asset" -X DELETE
           done
       - name: Release
