@@ -49,7 +49,7 @@ jobs:
           echo "gpgcheck=1" >> repodata/zfs-kmod.repo
           echo "gpgkey=${{ github.server_url }}/${{ github.repository }}/releases/download/repodata/zfs-repo.gpg" >> repodata/zfs-kmod.repo
       - name: Remove old files
-        uses: andreaswilli/delete-release-assets-action@v4
+        uses: andreaswilli/delete-release-assets-action@v4.0.0
         with:
           github_token: ${{ github.token }}
           tag: "repodata"
