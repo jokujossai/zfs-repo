@@ -20,7 +20,7 @@ jobs:
   repodata:
     name: Update repodata
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora-toolbox:${{ inputs.fedoraRelease }}
+    container: registry.fedoraproject.org/fedora-toolbox:${{ inputs.fedoraRelease || 'latest' }}
     concurrency:
       group: repodata
       cancel-in-progress: true
