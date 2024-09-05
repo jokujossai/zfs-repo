@@ -45,6 +45,7 @@ jobs:
     steps:
       - name: Fetch Fedora CoreOS release
         id: coreos-release
+        if: github.event_name == 'schedule' || inputs.fedoraRelease == 'latest' || inputs.kernelVersion == 'latest' || inputs.kernelRelease == 'latest'
         run: |
           #!/bin/bash
           set -e
@@ -54,6 +55,7 @@ jobs:
           echo "fedora_release=$(echo $coreos_release | cut -d. -f1)" >> $GITHUB_OUTPUT
       - name: Fetch CoreOS release meta
         id: kernel-release
+        if: github.event_name == 'schedule' || inputs.kernelVersion == 'latest' || inputs.kernelRelease == 'latest'
         run: |
           #!/bin/bash
           set -e
@@ -63,6 +65,7 @@ jobs:
           echo "kernel_release=$(echo "$kernel_pkg" | jq -r '.[3]' | cut -d. -f1)" >> $GITHUB_OUTPUT
       - name: Fetch ZFS release
         id: zfs-release
+        if: github.event_name == 'schedule' || inputs.zfsVersion == 'latest'
         run: |
           #!/bin/bash
           set -e
@@ -96,7 +99,7 @@ jobs:
             https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-core-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm \
             https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-devel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm \
             https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-modules-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm \
-            https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-modules-core-$KERNEL_VERSION-$KERNEL_RELEASE.fc${{ inputs.fedoraRelease }}.x86_64.rpm
+            https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-modules-core-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm
           rpm -qa | grep -q kernel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64
           dnf install -y -q --skip-broken epel-release gcc make autoconf automake libtool rpm-build libtirpc-devel libblkid-devel libuuid-devel libudev-devel openssl-devel zlib-devel libaio-devel libattr-devel elfutils-libelf-devel python3 python3-devel python3-setuptools python3-cffi libffi-devel git ncompress libcurl-devel
           dnf install -y -q --skip-broken --enablerepo=epel --enablerepo=powertools python3-packaging
