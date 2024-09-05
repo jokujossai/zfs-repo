@@ -68,7 +68,7 @@ jobs:
           set -e
           data="$(curl -Lsf https://api.github.com/repos/openzfs/zfs/releases?per_page=1)"
           release_name="$(echo "$data" | jq -r '.[0].name')"
-          echo "zfs_version=$(echo $release_name | cut -f- d1)" >> $GITHUB_OUTPUT
+          echo "zfs_version=$(echo $release_name | cut -f- -d1)" >> $GITHUB_OUTPUT
 
   build-rpm:
     needs: check_version
