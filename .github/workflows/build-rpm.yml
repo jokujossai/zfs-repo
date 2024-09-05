@@ -83,7 +83,13 @@ jobs:
       ZFS_VERSION: ${{ (github.event_name == 'schedule' || inputs.zfsVersion == 'latest') && needs.check_version.outputs.zfs_version || inputs.zfsVersion }}
 
     steps:
+      - name: Check if release exists
+        id: check-release-exists
+        # TODO: Skip check if exact version specified
+        run: curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/tags/zfs-$ZFS_VERSION_kernel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64""
+        continue-on-error: true
       - name: Install dependencies
+        if: steps.check-release-exists.outcome == 'success'
         run: |
           dnf install -y -q --skip-broken \
             https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm \
@@ -96,16 +102,20 @@ jobs:
           dnf install -y -q --skip-broken --enablerepo=epel --enablerepo=powertools python3-packaging
           dnf install -y -q rpm-sign
       - name: Get patches
+        if: steps.check-release-exists.outcome == 'success'
         uses: actions/checkout@v3
         with:
           sparse-checkout: |
             kmodtool-custom.patch
           sparse-checkout-cone-mode: false
       - name: Download source
+        if: steps.check-release-exists.outcome == 'success'
         run: curl -Lfs -O https://github.com/openzfs/zfs/releases/download/zfs-$ZFS_VERSION/zfs-$ZFS_VERSION.tar.gz
       - name: Extract sources
+        if: steps.check-release-exists.outcome == 'success'
         run: tar -xzf zfs-$ZFS_VERSION.tar.gz
       - name: Apply patches
+        if: steps.check-release-exists.outcome == 'success'
         run: |
           for patch in *.patch
           do
@@ -113,16 +123,19 @@ jobs:
             [[ $? -eq 0 ]] || exit 1
           done
       - name: Build
+        if: steps.check-release-exists.outcome == 'success'
         run: |
           cd zfs-$ZFS_VERSION \
             && ./autogen.sh \
             && ./configure \
             && make rpm-kmod
       - name: Sign RPM
+        if: steps.check-release-exists.outcome == 'success'
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
           rpmsign --define "_gpg_name zfs-repo" --addsign zfs-$ZFS_VERSION/*.rpm
       - name: Release
+        if: steps.check-release-exists.outcome == 'success'
         uses: softprops/action-gh-release@v1
         with:
           name: "Fedora $FEDORA_RELEASE, ZFS $ZFS_VERSION, kernel $KERNEL_VERSION-$KERNEL_RELEASE"
