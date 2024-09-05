@@ -141,6 +141,6 @@ jobs:
         if: steps.check-release-exists.outcome == 'failure'
         uses: softprops/action-gh-release@v1
         with:
-          name: "Fedora $FEDORA_RELEASE, ZFS $ZFS_VERSION, kernel $KERNEL_VERSION-$KERNEL_RELEASE"
-          tag_name: "zfs-$ZFS_VERSION_kernel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64"
-          files: zfs-$ZFS_VERSION/*.rpm
+          name: "Fedora ${{ env.FEDORA_RELEASE }}, ZFS ${{ env.ZFS_VERSION }}, kernel ${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}"
+          tag_name: "zfs-${{ env.ZFS_VERSION }}_kernel-${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}.fc${{ env.FEDORA_RELEASE }}.x86_64"
+          files: "zfs-${{ env.ZFS_VERSION}}/*.rpm"
