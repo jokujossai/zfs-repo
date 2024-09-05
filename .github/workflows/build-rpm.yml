@@ -7,39 +7,91 @@ on:
         description: 'ZFS version'
         required: true
         type: string
+        default: 'latest'
       fedoraRelease:
         description: 'Fedora release'
         required: true
-        default: 40
-        type: int
+        default: 'latest'
+        type: string
       kernelVersion:
         description: 'Kernel version'
         required: true
         type: string
+        default: 'latest'
       kernelRelease:
         description: 'Kernel release'
         required: true
-        type: int
+        type: string
+        default: 'latest'
+  schedule:
+    - cron: '30 5 * * *'
 
 permissions:
   contents: write
 
 jobs:
+  check_version:
+    name: Check latest versoin
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || intputs.zfsVersion == 'latest' || inputs.fedoraRelease == 'latest' || inputs.kernelVersion == 'latest' || inputs.kernelRelease == 'latest'
+
+    outputs:
+      coreos_release: ${{ steps.coreos-release.outputs.coreos_release }}
+      fedora_release: ${{ steps.coreos-release.outputs.fedora_release }}
+      kernel_version: ${{ steps.kernel-release.outputs.kernel_version }}
+      kernel_release: ${{ steps.kernel-release.outputs.kernel_release }}
+      zfs_version: ${{ steps.zfs-release.outputs.zfs_version }}
+
+    steps:
+      - name: Fetch Fedora CoreOS release
+        id: coreos-release
+        run: |
+          #!/bin/bash
+          set -e
+          data="$(curl -Lsf https://builds.coreos.fedoraproject.org/streams/stable.json)"
+          coreos_release="$(echo "$data" | jq -r jq -r .architectures.x86_64.artifacts.metal.release)"
+          echo "coreos_release=$coreos_release" >> $GITHUB_OUTPUT
+          echo "fedora_release=$(echo $coreos_release | cut -d. -f1)" >> $GITHUB_OUTPUT
+      - name: Fetch CoreOS release meta
+        id: kernel-release
+        run: |
+          #!/bin/bash
+          set -e
+          data="$(curl -Lsf https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${{ steps.coreos-release.outputs.coreos_release }}/x86_64/meta.json)"
+          kernel_pkg="$(echo "$data" | jq -r '."rpmostree.rpmdb.pkglist"[] | select(.[0] == "kernel")')"
+          echo "kernel_version=$(echo "$data" | jq -r '.[2]')" >> $GITHUB_OUTPUT
+          echo "kernel_release=$(echo "$data" | jq -r '.[3]' | cut -d. -f1)" >> $GITHUB_OUTPUT
+      - name: Fetch ZFS release
+        id: zfs-release
+        run: |
+          #!/bin/bash
+          set -e
+          data="$(curl -Lsf https://api.github.com/repos/openzfs/zfs/releases?per_page=1)"
+          release_name="$(echo "$data" | jq -r '.[0].name')"
+          echo "zfs_version=$(echo $release_name | cut -f- d1)" >> $GITHUB_OUTPUT
+
   build-rpm:
+    needs: check_version
     name: Build RPM
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora-toolbox:${{ inputs.fedoraRelease }}
+    container: registry.fedoraproject.org/fedora-toolbox:${{ (github.event_name == 'schedule' || inputs.fedoraRelease == 'latest') && needs.check_version.outputs.fedora_release || inputs.fedoraRelease }}
+    
+    env:
+      KERNEL_VERSION: ${{ (github.event_name == 'schedule' || inputs.kernelVersion == 'latest') && needs.check_version.outputs.kernel_version || inputs.kernelVersion }}
+      KERNEL_RELEASE: ${{ (github.event_name == 'schedule' || inputs.kernelRelease == 'latest') && needs.check_version.outputs.kernel_release || inputs.kernelRelease }}
+      FEDORA_RELEASE: ${{ (github.event_name == 'schedule' || inputs.fedoraRelease == 'latest') && needs.check_version.outputs.fedora_release || inputs.fedoraRelease }}
+      ZFS_VERSION: ${{ (github.event_name == 'schedule' || inputs.zfsVersion == 'latest') && needs.check_version.outputs.zfs_version || inputs.zfsVersion }}
 
     steps:
       - name: Install dependencies
         run: |
           dnf install -y -q --skip-broken \
-            https://kojipkgs.fedoraproject.org//packages/kernel/${{ inputs.kernelVersion }}/${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}/x86_64/kernel-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64.rpm \
-            https://kojipkgs.fedoraproject.org//packages/kernel/${{ inputs.kernelVersion }}/${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}/x86_64/kernel-core-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64.rpm \
-            https://kojipkgs.fedoraproject.org//packages/kernel/${{ inputs.kernelVersion }}/${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}/x86_64/kernel-devel-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64.rpm \
-            https://kojipkgs.fedoraproject.org//packages/kernel/${{ inputs.kernelVersion }}/${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}/x86_64/kernel-modules-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64.rpm \
-            https://kojipkgs.fedoraproject.org//packages/kernel/${{ inputs.kernelVersion }}/${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}/x86_64/kernel-modules-core-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64.rpm
-          rpm -qa | grep -q kernel-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64
+            https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm \
+            https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-core-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm \
+            https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-devel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm \
+            https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-modules-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm \
+            https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-modules-core-$KERNEL_VERSION-$KERNEL_RELEASE.fc${{ inputs.fedoraRelease }}.x86_64.rpm
+          rpm -qa | grep -q kernel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64
           dnf install -y -q --skip-broken epel-release gcc make autoconf automake libtool rpm-build libtirpc-devel libblkid-devel libuuid-devel libudev-devel openssl-devel zlib-devel libaio-devel libattr-devel elfutils-libelf-devel python3 python3-devel python3-setuptools python3-cffi libffi-devel git ncompress libcurl-devel
           dnf install -y -q --skip-broken --enablerepo=epel --enablerepo=powertools python3-packaging
           dnf install -y -q rpm-sign
@@ -50,29 +102,29 @@ jobs:
             kmodtool-custom.patch
           sparse-checkout-cone-mode: false
       - name: Download source
-        run: curl -Lfs -O https://github.com/openzfs/zfs/releases/download/zfs-${{ inputs.zfsVersion }}/zfs-${{ inputs.zfsVersion }}.tar.gz
+        run: curl -Lfs -O https://github.com/openzfs/zfs/releases/download/zfs-$ZFS_VERSION/zfs-$ZFS_VERSION.tar.gz
       - name: Extract sources
-        run: tar -xzf zfs-${{ inputs.zfsVersion }}.tar.gz
+        run: tar -xzf zfs-$ZFS_VERSION.tar.gz
       - name: Apply patches
         run: |
           for patch in *.patch
           do
-            patch -p1 -d zfs-${{ inputs.zfsVersion }} < $patch
+            patch -p1 -d zfs-$ZFS_VERSION < $patch
             [[ $? -eq 0 ]] || exit 1
           done
       - name: Build
         run: |
-          cd zfs-${{ inputs.zfsVersion }} \
+          cd zfs-$ZFS_VERSION \
             && ./autogen.sh \
             && ./configure \
             && make rpm-kmod
       - name: Sign RPM
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
-          rpmsign --define "_gpg_name zfs-repo" --addsign zfs-${{ inputs.zfsVersion }}/*.rpm
+          rpmsign --define "_gpg_name zfs-repo" --addsign zfs-$ZFS_VERSION/*.rpm
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          name: "Fedora ${{ inputs.fedoraRelease }}, ZFS ${{ inputs.zfsVersion }}, kernel ${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}"
-          tag_name: "zfs-${{ inputs.zfsVersion }}_kernel-${{ inputs.kernelVersion }}-${{ inputs.kernelRelease }}.fc${{ inputs.fedoraRelease }}.x86_64"
-          files: zfs-${{ inputs.zfsVersion }}/*.rpm
+          name: "Fedora $FEDORA_RELEASE, ZFS $ZFS_VERSION, kernel $KERNEL_VERSION-$KERNEL_RELEASE"
+          tag_name: "zfs-$ZFS_VERSION_kernel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64"
+          files: zfs-$ZFS_VERSION/*.rpm
