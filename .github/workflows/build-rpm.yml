@@ -33,7 +33,7 @@ jobs:
   check_version:
     name: Check latest versoin
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || intputs.zfsVersion == 'latest' || inputs.fedoraRelease == 'latest' || inputs.kernelVersion == 'latest' || inputs.kernelRelease == 'latest'
+    if: github.event_name == 'schedule' || inputs.zfsVersion == 'latest' || inputs.fedoraRelease == 'latest' || inputs.kernelVersion == 'latest' || inputs.kernelRelease == 'latest'
 
     outputs:
       coreos_release: ${{ steps.coreos-release.outputs.coreos_release }}
