@@ -57,7 +57,7 @@ jobs:
         run: |
           #!/bin/bash
           set -e
-          data="$(curl -Lsf https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${{ steps.coreos-release.outputs.coreos_release }}/x86_64/meta.json)"
+          data="$(curl -Lsf https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${{ steps.coreos-release.outputs.coreos_release }}/x86_64/commitmeta.json)"
           kernel_pkg="$(echo "$data" | jq -r '."rpmostree.rpmdb.pkglist"[] | select(.[0] == "kernel")')"
           echo "kernel_version=$(echo "$data" | jq -r '.[2]')" >> $GITHUB_OUTPUT
           echo "kernel_release=$(echo "$data" | jq -r '.[3]' | cut -d. -f1)" >> $GITHUB_OUTPUT
