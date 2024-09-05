@@ -49,7 +49,7 @@ jobs:
           #!/bin/bash
           set -e
           data="$(curl -Lsf https://builds.coreos.fedoraproject.org/streams/stable.json)"
-          coreos_release="$(echo "$data" | jq -r jq -r .architectures.x86_64.artifacts.metal.release)"
+          coreos_release="$(echo "$data" | jq -r .architectures.x86_64.artifacts.metal.release)"
           echo "coreos_release=$coreos_release" >> $GITHUB_OUTPUT
           echo "fedora_release=$(echo $coreos_release | cut -d. -f1)" >> $GITHUB_OUTPUT
       - name: Fetch CoreOS release meta
