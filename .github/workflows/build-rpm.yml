@@ -89,7 +89,7 @@ jobs:
       - name: Check if release exists
         id: check-release-exists
         # TODO: Skip check if exact version specified
-        run: curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/tags/zfs-$ZFS_VERSION_kernel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64"
+        run: curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/tags/zfs-${{ env.ZFS_VERSION }}_kernel-${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}.fc${{ env.FEDORA_RELEASE }}.x86_64"
         continue-on-error: true
       - name: Install dependencies
         if: steps.check-release-exists.outcome == 'failure'
