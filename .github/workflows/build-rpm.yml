@@ -69,8 +69,8 @@ jobs:
         run: |
           #!/bin/bash
           set -e
-          data="$(curl -Lsf https://api.github.com/repos/openzfs/zfs/releases?per_page=1)"
-          release_name="$(echo "$data" | jq -r '.[0].name')"
+          data="$(curl -Lsf https://api.github.com/repos/openzfs/zfs/releases?per_page=100)"
+          release_name="$(echo "$data" | jq -r '[.[] | select(.prerelease == false)] | .[0].name')"
           echo "zfs_version=$(echo $release_name | cut -d- -f2)" >> $GITHUB_OUTPUT
 
   build-rpm:
