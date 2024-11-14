@@ -101,8 +101,7 @@ jobs:
             https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-modules-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm \
             https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-modules-core-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm
           rpm -qa | grep -q kernel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64
-          dnf install -y -q --skip-broken epel-release gcc make autoconf automake libtool rpm-build libtirpc-devel libblkid-devel libuuid-devel libudev-devel openssl-devel zlib-devel libaio-devel libattr-devel elfutils-libelf-devel python3 python3-devel python3-setuptools python3-cffi libffi-devel git ncompress libcurl-devel
-          dnf install -y -q --skip-broken --enablerepo=epel --enablerepo=powertools python3-packaging
+          dnf install -y -q --skip-broken gcc make autoconf automake libtool rpm-build libtirpc-devel libblkid-devel libuuid-devel libudev-devel openssl-devel zlib-devel libaio-devel libattr-devel elfutils-libelf-devel python3 python3-devel python3-setuptools python3-cffi libffi-devel git ncompress libcurl-devel python3-packaging
           dnf install -y -q rpm-sign
       - name: Get patches
         if: steps.check-release-exists.outcome == 'failure'
