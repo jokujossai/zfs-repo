@@ -138,7 +138,7 @@ jobs:
           rpmsign --define "_gpg_name zfs-repo" --addsign zfs-$ZFS_VERSION/*.rpm
       - name: Release
         if: steps.check-release-exists.outcome == 'failure'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: "Fedora ${{ env.FEDORA_RELEASE }}, ZFS ${{ env.ZFS_VERSION }}, kernel ${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}"
           tag_name: "zfs-${{ env.ZFS_VERSION }}_kernel-${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}.fc${{ env.FEDORA_RELEASE }}.x86_64"
