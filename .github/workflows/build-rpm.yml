@@ -105,7 +105,7 @@ jobs:
           dnf install -y -q rpm-sign
       - name: Get patches
         if: steps.check-release-exists.outcome == 'failure'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             kmodtool-custom.patch
