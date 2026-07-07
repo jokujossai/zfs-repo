@@ -19,6 +19,7 @@ permissions:
 jobs:
   repodata:
     name: Update repodata
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event != 'pull_request' && github.event.workflow_run.head_branch == github.event.repository.default_branch)
     runs-on: ubuntu-latest
     container: registry.fedoraproject.org/fedora-toolbox:${{ inputs.fedoraRelease || 'latest' }}
     concurrency:
@@ -48,7 +49,7 @@ jobs:
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
           gpg --detach-sign --armor repodata/repomd.xml
           gpg --export --armor > repodata/zfs-repo.gpg
-      - name: Repo file
+      - name: Repo files
         run: |
           echo "[zfs-kmod]" > repodata/zfs-kmod.repo
           echo "name=ZFS kmod" >> repodata/zfs-kmod.repo
@@ -56,6 +57,14 @@ jobs:
           echo "enabled=1" >> repodata/zfs-kmod.repo
           echo "gpgcheck=1" >> repodata/zfs-kmod.repo
           echo "gpgkey=${{ github.server_url }}/${{ github.repository }}/releases/download/repodata/zfs-repo.gpg" >> repodata/zfs-kmod.repo
+          echo "includepkgs=kmod-zfs-*, zfs-kmod-*" >> repodata/zfs-kmod.repo
+          echo "[zfs-akmod]" > repodata/zfs-akmod.repo
+          echo "name=ZFS akmod" >> repodata/zfs-akmod.repo
+          echo 'baseurl=${{ github.server_url }}/${{ github.repository }}/releases/download/' >> repodata/zfs-akmod.repo
+          echo "enabled=1" >> repodata/zfs-akmod.repo
+          echo "gpgcheck=1" >> repodata/zfs-akmod.repo
+          echo "gpgkey=${{ github.server_url }}/${{ github.repository }}/releases/download/repodata/zfs-repo.gpg" >> repodata/zfs-akmod.repo
+          echo "includepkgs=akmod-zfs, kmod-zfs" >> repodata/zfs-akmod.repo
       - name: Remove old files
         env:
           GH_TOKEN: ${{ github.token }}
