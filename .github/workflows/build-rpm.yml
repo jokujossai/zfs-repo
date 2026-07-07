@@ -87,14 +87,19 @@ jobs:
       ZFS_VERSION: ${{ (github.event_name != 'workflow_dispatch' || inputs.zfsVersion == 'latest') && needs.check_version.outputs.zfs_version || inputs.zfsVersion }}
 
     steps:
-      - name: Check if release exists
-        id: check-release-exists
+      - name: Check if kmod release exists
+        id: check-kmod-release
         # TODO: Skip check if exact version specified
         if: github.event_name != 'pull_request'
         run: curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/tags/zfs-${{ env.ZFS_VERSION }}_kernel-${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}.fc${{ env.FEDORA_RELEASE }}.x86_64"
         continue-on-error: true
+      - name: Check if akmod release exists
+        id: check-akmod-release
+        if: github.event_name != 'pull_request'
+        run: curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/tags/zfs-${{ env.ZFS_VERSION }}_fc${{ env.FEDORA_RELEASE }}_akmod"
+        continue-on-error: true
       - name: Install dependencies
-        if: steps.check-release-exists.outcome != 'success'
+        if: steps.check-kmod-release.outcome != 'success' || steps.check-akmod-release.outcome != 'success'
         run: |
           dnf install -y -q --skip-broken \
             https://kojipkgs.fedoraproject.org//packages/kernel/$KERNEL_VERSION/$KERNEL_RELEASE.fc$FEDORA_RELEASE/x86_64/kernel-$KERNEL_VERSION-$KERNEL_RELEASE.fc$FEDORA_RELEASE.x86_64.rpm \
@@ -106,91 +111,20 @@ jobs:
           dnf install -y -q --skip-broken gcc make autoconf automake libtool rpm-build libtirpc-devel libblkid-devel libuuid-devel libudev-devel openssl-devel zlib-devel libaio-devel libattr-devel elfutils-libelf-devel python3 python3-devel python3-setuptools python3-cffi libffi-devel git ncompress libcurl-devel python3-packaging
           dnf install -y -q rpm-sign
       - name: Get patches
-        if: steps.check-release-exists.outcome != 'success'
-        uses: actions/checkout@v7
-        with:
-          sparse-checkout: |
-            kmodtool-custom.patch
-          sparse-checkout-cone-mode: false
-      - name: Download source
-        if: steps.check-release-exists.outcome != 'success'
-        run: curl -Lfs -O https://github.com/openzfs/zfs/releases/download/zfs-$ZFS_VERSION/zfs-$ZFS_VERSION.tar.gz
-      - name: Extract sources
-        if: steps.check-release-exists.outcome != 'success'
-        run: tar -xzf zfs-$ZFS_VERSION.tar.gz
-      - name: Apply patches
-        if: steps.check-release-exists.outcome != 'success'
-        run: |
-          for patch in *.patch
-          do
-            patch -p1 -d zfs-$ZFS_VERSION < $patch
-            [[ $? -eq 0 ]] || exit 1
-          done
-      - name: Build
-        if: steps.check-release-exists.outcome != 'success'
-        run: |
-          cd zfs-$ZFS_VERSION \
-            && ./autogen.sh \
-            && ./configure \
-            && make rpm-kmod
-      - name: Sign RPM
-        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.check-release-exists.outcome != 'success'
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
-          rpmsign --define "_gpg_name zfs-repo" --addsign zfs-$ZFS_VERSION/*.rpm
-      - name: Upload build artifact
-        if: steps.check-release-exists.outcome != 'success'
-        uses: actions/upload-artifact@v7
-        with:
-          name: zfs-${{ env.ZFS_VERSION }}_kernel-${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}.fc${{ env.FEDORA_RELEASE }}.x86_64
-          path: zfs-${{ env.ZFS_VERSION }}/*.rpm
-      - name: Release
-        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.check-release-exists.outcome != 'success'
-        uses: softprops/action-gh-release@v3
-        with:
-          name: "Fedora ${{ env.FEDORA_RELEASE }}, ZFS ${{ env.ZFS_VERSION }}, kernel ${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}"
-          tag_name: "zfs-${{ env.ZFS_VERSION }}_kernel-${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}.fc${{ env.FEDORA_RELEASE }}.x86_64"
-          files: "zfs-${{ env.ZFS_VERSION}}/*.rpm"
-
-  build-rpm-akmod:
-    needs: check_version
-    name: Build akmod RPM
-    runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora-toolbox:${{ (github.event_name != 'workflow_dispatch' || inputs.fedoraRelease == 'latest') && needs.check_version.outputs.fedora_release || inputs.fedoraRelease }}
-
-    env:
-      FEDORA_RELEASE: ${{ (github.event_name != 'workflow_dispatch' || inputs.fedoraRelease == 'latest') && needs.check_version.outputs.fedora_release || inputs.fedoraRelease }}
-      ZFS_VERSION: ${{ (github.event_name != 'workflow_dispatch' || inputs.zfsVersion == 'latest') && needs.check_version.outputs.zfs_version || inputs.zfsVersion }}
-
-    steps:
-      - name: Check if release exists
-        id: check-release-exists
-        # TODO: Skip check if exact version specified
-        if: github.event_name != 'pull_request'
-        run: curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/tags/zfs-${{ env.ZFS_VERSION }}_fc${{ env.FEDORA_RELEASE }}_akmod"
-        continue-on-error: true
-      - name: Install dependencies
-        if: steps.check-release-exists.outcome != 'success'
-        run: |
-          dnf install -y -q --skip-broken kernel kernel-core kernel-devel kernel-modules kernel-modules-core
-          rpm -q kernel-devel
-          dnf install -y -q --skip-broken gcc make autoconf automake libtool rpm-build libtirpc-devel libblkid-devel libuuid-devel libudev-devel openssl-devel zlib-devel libaio-devel libattr-devel elfutils-libelf-devel python3 python3-devel python3-setuptools python3-cffi libffi-devel git ncompress libcurl-devel python3-packaging
-          dnf install -y -q rpm-sign
-      - name: Get patches
-        if: steps.check-release-exists.outcome != 'success'
+        if: steps.check-kmod-release.outcome != 'success' || steps.check-akmod-release.outcome != 'success'
         uses: actions/checkout@v7
         with:
           sparse-checkout: |
             *.patch
           sparse-checkout-cone-mode: false
       - name: Download source
-        if: steps.check-release-exists.outcome != 'success'
+        if: steps.check-kmod-release.outcome != 'success' || steps.check-akmod-release.outcome != 'success'
         run: curl -Lfs -O https://github.com/openzfs/zfs/releases/download/zfs-$ZFS_VERSION/zfs-$ZFS_VERSION.tar.gz
       - name: Extract sources
-        if: steps.check-release-exists.outcome != 'success'
+        if: steps.check-kmod-release.outcome != 'success' || steps.check-akmod-release.outcome != 'success'
         run: tar -xzf zfs-$ZFS_VERSION.tar.gz
       - name: Apply patches
-        if: steps.check-release-exists.outcome != 'success'
+        if: steps.check-kmod-release.outcome != 'success' || steps.check-akmod-release.outcome != 'success'
         run: |
           for patch in *.patch
           do
@@ -198,27 +132,39 @@ jobs:
             [[ $? -eq 0 ]] || exit 1
           done
       - name: Build
-        if: steps.check-release-exists.outcome != 'success'
+        if: steps.check-kmod-release.outcome != 'success' || steps.check-akmod-release.outcome != 'success'
         run: |
           cd zfs-$ZFS_VERSION \
             && ./autogen.sh \
             && ./configure \
-            && make rpm-akmod
+            && make rpm-kmod rpm-akmod
       - name: Sign RPM
-        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.check-release-exists.outcome != 'success'
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (steps.check-kmod-release.outcome != 'success' || steps.check-akmod-release.outcome != 'success')
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
           rpmsign --define "_gpg_name zfs-repo" --addsign zfs-$ZFS_VERSION/*.rpm
       - name: Upload build artifact
-        if: steps.check-release-exists.outcome != 'success'
+        if: steps.check-kmod-release.outcome != 'success' || steps.check-akmod-release.outcome != 'success'
         uses: actions/upload-artifact@v7
         with:
-          name: zfs-${{ env.ZFS_VERSION }}_fc${{ env.FEDORA_RELEASE }}_akmod
+          name: zfs-${{ env.ZFS_VERSION }}_kernel-${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}.fc${{ env.FEDORA_RELEASE }}.x86_64
           path: zfs-${{ env.ZFS_VERSION }}/*.rpm
-      - name: Release
-        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.check-release-exists.outcome != 'success'
+      - name: Release kmod
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.check-kmod-release.outcome != 'success'
+        uses: softprops/action-gh-release@v3
+        with:
+          name: "Fedora ${{ env.FEDORA_RELEASE }}, ZFS ${{ env.ZFS_VERSION }}, kernel ${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}"
+          tag_name: "zfs-${{ env.ZFS_VERSION }}_kernel-${{ env.KERNEL_VERSION }}-${{ env.KERNEL_RELEASE }}.fc${{ env.FEDORA_RELEASE }}.x86_64"
+          files: |
+            zfs-${{ env.ZFS_VERSION }}/kmod-zfs-*.rpm
+            zfs-${{ env.ZFS_VERSION }}/zfs-kmod-*.rpm
+      - name: Release akmod
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.check-akmod-release.outcome != 'success'
         uses: softprops/action-gh-release@v3
         with:
           name: "Fedora ${{ env.FEDORA_RELEASE }}, ZFS ${{ env.ZFS_VERSION }}, akmod"
           tag_name: "zfs-${{ env.ZFS_VERSION }}_fc${{ env.FEDORA_RELEASE }}_akmod"
-          files: "zfs-${{ env.ZFS_VERSION}}/*.rpm"
+          files: |
+            zfs-${{ env.ZFS_VERSION }}/akmod-zfs-*.rpm
+            zfs-${{ env.ZFS_VERSION }}/kmod-zfs-${{ env.ZFS_VERSION }}*.rpm
+            zfs-${{ env.ZFS_VERSION }}/zfs-akmod-*.rpm
