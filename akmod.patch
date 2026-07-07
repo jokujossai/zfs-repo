@@ -1,0 +1,253 @@
+From cf1964d77922e7e69c62e5d350a98c61434db48f Mon Sep 17 00:00:00 2001
+From: Daniel Linjama <daniel@dev.linjama.com>
+Date: Fri, 6 Jan 2023 12:03:49 +0200
+Subject: [PATCH] rpm: add RPM spec for akmod-zfs
+
+Akmods RPM package for CoreOS and Silverblue support
+
+Signed-off-by: Daniel Linjama <daniel@dev.linjama.com>
+---
+ config/rpm.am                 |  22 ++++---
+ config/zfs-build.m4           |   6 ++
+ configure.ac                  |   1 +
+ rpm/Makefile.am               |   1 +
+ rpm/generic/zfs-akmod.spec.in | 112 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 135 insertions(+), 7 deletions(-)
+ create mode 100644 rpm/generic/zfs-akmod.spec.in
+
+diff --git a/config/rpm.am b/config/rpm.am
+index 4ccf549b3..b8b01a004 100644
+--- a/config/rpm.am
++++ b/config/rpm.am
+@@ -7,16 +7,20 @@
+ # Build targets for RPM packages.
+ ###############################################################################
+ 
+-PHONY += srpm srpms srpm-kmod srpm-dkms srpm-utils
+-PHONY += rpm rpms rpm-kmod rpm-dkms rpm-utils rpm-utils-initramfs
++PHONY += srpm srpms srpm-kmod srpm-akmod srpm-dkms srpm-utils
++PHONY += rpm rpms rpm-kmod rpm-akmod rpm-dkms rpm-utils rpm-utils-initramfs
+ PHONY += srpm-common rpm-common rpm-local
+ 
+-srpm-kmod srpm-dkms srpm-utils: dist
++srpm-kmod srpm-akmod srpm-dkms srpm-utils: dist
+ 
+ srpm-kmod:
+ 	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}-kmod" \
+ 		def='${SRPM_DEFINE_COMMON} ${SRPM_DEFINE_KMOD}' srpm-common
+ 
++srpm-akmod:
++	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}-akmod" \
++		def='${SRPM_DEFINE_COMMON} ${SRPM_DEFINE_AKMOD}' srpm-common
++
+ srpm-dkms:
+ 	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}-dkms" \
+ 		def='${SRPM_DEFINE_COMMON} ${SRPM_DEFINE_DKMS}' srpm-common
+@@ -25,13 +29,17 @@ srpm-utils:
+ 	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}" \
+ 		def='${SRPM_DEFINE_COMMON} ${SRPM_DEFINE_UTIL}' srpm-common
+ 
+-srpm: srpm-kmod srpm-dkms srpm-utils
+-srpms: srpm-kmod srpm-dkms srpm-utils
++srpm: srpm-kmod srpm-akmod srpm-dkms srpm-utils
++srpms: srpm-kmod srpm-akmod srpm-dkms srpm-utils
+ 
+ rpm-kmod: srpm-kmod
+ 	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}-kmod" \
+ 		def='${RPM_DEFINE_COMMON} ${RPM_DEFINE_KMOD}' rpm-common
+ 
++rpm-akmod: srpm-akmod
++	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}-akmod" \
++		def='${RPM_DEFINE_COMMON} ${RPM_DEFINE_AKMOD}' rpm-common
++
+ rpm-dkms: srpm-dkms
+ 	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}-dkms" \
+ 		def='${RPM_DEFINE_COMMON} ${RPM_DEFINE_DKMS}' rpm-common
+@@ -52,8 +60,8 @@ rpm-utils-initramfs: srpm-utils
+ 	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}" \
+ 		def='${RPM_DEFINE_COMMON} ${RPM_DEFINE_UTIL} ${RPM_DEFINE_INITRAMFS}' rpm-common
+ 
+-rpm: rpm-kmod rpm-dkms rpm-utils
+-rpms: rpm-kmod rpm-dkms rpm-utils
++rpm: rpm-kmod rpm-akmod rpm-dkms rpm-utils
++rpms: rpm-kmod rpm-akmod rpm-dkms rpm-utils
+ 
+ rpm-local:
+ 	@(if test "${HAVE_RPMBUILD}" = "no"; then \
+diff --git a/config/zfs-build.m4 b/config/zfs-build.m4
+index 9d829a4e6..4f31dce47 100644
+--- a/config/zfs-build.m4
++++ b/config/zfs-build.m4
+@@ -469,11 +469,15 @@ AC_DEFUN([ZFS_AC_RPM], [
+ 		RPM_DEFINE_KMOD=${RPM_DEFINE_KMOD}' --define "kernel_arch KERNEL_ARCH=$(KERNEL_ARCH)"'
+ 	])
+ 
++	RPM_DEFINE_AKMOD='--define "_wrong_version_format_terminate_build 0"'
++	RPM_DEFINE_AKMOD=${RPM_DEFINE_AKMOD}' --define "akmod 1"'
++
+ 	RPM_DEFINE_DKMS=''
+ 
+ 	SRPM_DEFINE_COMMON='--define "build_src_rpm 1"'
+ 	SRPM_DEFINE_UTIL=
+ 	SRPM_DEFINE_KMOD=
++	SRPM_DEFINE_AKMOD=
+ 	SRPM_DEFINE_DKMS=
+ 
+ 	RPM_SPEC_DIR="rpm/generic"
+@@ -496,10 +500,12 @@ AC_DEFUN([ZFS_AC_RPM], [
+ 	AC_SUBST(RPM_SPEC_DIR)
+ 	AC_SUBST(RPM_DEFINE_UTIL)
+ 	AC_SUBST(RPM_DEFINE_KMOD)
++	AC_SUBST(RPM_DEFINE_AKMOD)
+ 	AC_SUBST(RPM_DEFINE_DKMS)
+ 	AC_SUBST(RPM_DEFINE_COMMON)
+ 	AC_SUBST(SRPM_DEFINE_UTIL)
+ 	AC_SUBST(SRPM_DEFINE_KMOD)
++	AC_SUBST(SRPM_DEFINE_AKMOD)
+ 	AC_SUBST(SRPM_DEFINE_DKMS)
+ 	AC_SUBST(SRPM_DEFINE_COMMON)
+ ])
+diff --git a/configure.ac b/configure.ac
+index e1597079d..56d8c3dfc 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -79,6 +79,7 @@ AC_CONFIG_FILES([
+ 	lib/libzfsbootenv/libzfsbootenv.pc
+ 	module/Kbuild
+ 	module/Makefile
++	rpm/generic/zfs-akmod.spec
+ 	rpm/generic/zfs-dkms.spec
+ 	rpm/generic/zfs-kmod.spec
+ 	rpm/generic/zfs.spec
+diff --git a/rpm/Makefile.am b/rpm/Makefile.am
+index 207f02c48..d3777f557 100644
+--- a/rpm/Makefile.am
++++ b/rpm/Makefile.am
+@@ -1,5 +1,6 @@
+ # SPDX-License-Identifier: CDDL-1.0
+ dist_noinst_DATA += \
++	%D%/generic/zfs-akmod.spec.in \
+ 	%D%/generic/zfs-dkms.spec.in \
+ 	%D%/generic/zfs-kmod.spec.in \
+ 	%D%/generic/zfs.spec.in \
+diff --git a/rpm/generic/zfs-akmod.spec.in b/rpm/generic/zfs-akmod.spec.in
+new file mode 100644
+index 000000000..24e439ae4
+--- /dev/null
++++ b/rpm/generic/zfs-akmod.spec.in
+@@ -0,0 +1,112 @@
++%define module  @PACKAGE@
++
++
++#define repo    rpmfusion
++#define repo    chaos
++
++%define buildforkernels akmod
++%global debug_package %{nil}
++
++Name:           %{module}-akmod
++
++Version:        @VERSION@
++Release:        @RELEASE@%{?dist}
++Summary:        Kernel module(s)
++
++Group:          System Environment/Kernel
++License:        @ZFS_META_LICENSE@
++URL:            https://github.com/openzfs/zfs
++Source0:        %{module}-%{version}.tar.gz
++Source10:       kmodtool
++BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id} -u -n)
++%if 0%{?rhel}%{?fedora}%{?openEuler}
++BuildRequires:  gcc, make
++BuildRequires:  elfutils-libelf-devel
++%endif
++
++%if (0%{?fedora}%{?suse_version}) || (0%{?rhel} && 0%{?rhel} < 9)
++# We don't directly use it, but if this isn't installed, rpmbuild as root can
++# crash+corrupt rpmdb
++# See issue #12071
++BuildRequires:  ncompress
++%endif
++
++# The developments headers will conflict with the dkms packages.
++Conflicts:      %{module}-dkms
++
++# LDFLAGS are not sanitized by arch/*/Makefile for these architectures.
++%ifarch ppc ppc64 ppc64le aarch64
++%global __global_ldflags %{nil}
++%endif
++
++# Kmodtool does its magic here.  A patched version of kmodtool is shipped
++# with the source rpm until kmod development packages are supported upstream.
++# https://bugzilla.rpmfusion.org/show_bug.cgi?id=2714
++%{expand:%(bash %{SOURCE10} --target %{_target_cpu} %{?repo:--repo %{?repo}} --kmodname %{module} %{?buildforkernels:--%{buildforkernels}} --devel %{?prefix:--prefix "%{?prefix}"} %{?kernels:--for-kernels "%{?kernels}"} %{?kernelbuildroot:--buildroot "%{?kernelbuildroot}"} 2>/dev/null) }
++
++%description
++Akmod package for %{module} kernel modules
++
++%prep
++# Error out if there was something wrong with kmodtool.
++%{?kmodtool_check}
++
++# Print kmodtool output for debugging purposes:
++bash %{SOURCE10}  --target %{_target_cpu} %{?repo:--repo %{?repo}} --kmodname %{module} %{?buildforkernels:--%{buildforkernels}} --devel %{?prefix:--prefix "%{?prefix}"} %{?kernels:--for-kernels "%{?kernels}"} %{?kernelbuildroot:--buildroot "%{?kernelbuildroot}"} 2>/dev/null
++
++%if %{with debug}
++    %define debug --enable-debug
++%else
++    %define debug --disable-debug
++%endif
++
++%if %{with debuginfo}
++    %define debuginfo --enable-debuginfo
++%else
++    %define debuginfo --disable-debuginfo
++%endif
++
++# Leverage VPATH from configure to avoid making multiple copies.
++%define _configure ../%{module}-%{version}/configure
++
++%setup -q -c -T -a 0
++
++for kernel_version in %{?kernel_versions}; do
++    cp -al %{module}-%{version} _kmod_build_${kernel_version%%___*}
++done
++
++%build
++for kernel_version in %{?kernel_versions}; do
++    cd _kmod_build_${kernel_version%%___*}
++    %configure \
++        --with-config=kernel \
++        --with-linux=${kernel_version##*___} \
++        --with-linux-obj=${kernel_version##*___} \
++        %{debug} \
++        %{debuginfo} \
++        %{?kernel_cc} \
++        %{?kernel_ld} \
++        %{?kernel_llvm}
++    make %{?_smp_mflags}
++    cd ..
++done
++
++
++%install
++rm -rf ${RPM_BUILD_ROOT}
++
++# Relies on the kernel 'modules_install' make target.
++for kernel_version in %{?kernel_versions}; do
++    cd _kmod_build_${kernel_version%%___*}
++    make install \
++        DESTDIR=${RPM_BUILD_ROOT} \
++        %{?prefix:INSTALL_MOD_PATH=%{?prefix}} \
++        INSTALL_MOD_DIR=%{kmodinstdir_postfix}
++    cd ..
++done
++
++%{?akmod_install}
++
++
++%clean
++rm -rf $RPM_BUILD_ROOT
+-- 
+2.54.0
+
