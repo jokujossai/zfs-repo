@@ -1,9 +1,10 @@
 diff --git a/scripts/kmodtool b/scripts/kmodtool
-index 0d6af2c..fc9876e 100644
+index e24f206..fc9876e 100644
 --- a/scripts/kmodtool
 +++ b/scripts/kmodtool
-@@ -1,10 +1,10 @@
+@@ -1,11 +1,10 @@
 -#!/usr/bin/env bash
+-# SPDX-License-Identifier: MIT
 -# shellcheck disable=SC2086,SC2295
 +#!/bin/bash
  
@@ -16,7 +17,7 @@ index 0d6af2c..fc9876e 100644
  #
  # Permission is hereby granted, free of charge, to any person obtaining
  # a copy of this software and associated documentation files (the
-@@ -28,301 +28,388 @@
+@@ -29,301 +28,388 @@
  shopt -s extglob
  
  myprog="kmodtool-${repo}"
@@ -591,7 +592,7 @@ index 0d6af2c..fc9876e 100644
  %defattr(644,root,root,755)
  
  
-@@ -333,39 +420,32 @@ print_customrpmtemplate ()
+@@ -334,39 +420,32 @@ print_customrpmtemplate ()
  {
  	for kernel in ${1}
  	do
@@ -651,7 +652,7 @@ index 0d6af2c..fc9876e 100644
  		fi
  	done
  
-@@ -385,51 +465,42 @@ print_rpmtemplate ()
+@@ -386,51 +465,42 @@ print_rpmtemplate ()
  	# and print it and some other required stuff as macro
  	print_rpmtemplate_header
  
@@ -715,7 +716,7 @@ index 0d6af2c..fc9876e 100644
  				error_out 2 "Filterfile ${1} not found" >&2
  			fi
  			filterfile="${1}"
-@@ -437,38 +508,26 @@ while [[ -n "${1}" ]] ; do
+@@ -438,38 +508,26 @@ while [[ -n "${1}" ]] ; do
  			;;
  		--kmodname)
  			shift
@@ -760,7 +761,7 @@ index 0d6af2c..fc9876e 100644
  			for_kernels="${1}"
  			shift
  			;;
-@@ -476,6 +535,22 @@ while [[ -n "${1}" ]] ; do
+@@ -477,6 +535,22 @@ while [[ -n "${1}" ]] ; do
  			shift
  			noakmod="true"
  			;;
@@ -783,7 +784,7 @@ index 0d6af2c..fc9876e 100644
  		--target)
  			shift
  			target="${1}"
-@@ -493,11 +568,6 @@ while [[ -n "${1}" ]] ; do
+@@ -494,11 +568,6 @@ while [[ -n "${1}" ]] ; do
  			shift
  			build_kernels="current"
  			;;
@@ -795,7 +796,7 @@ index 0d6af2c..fc9876e 100644
  		--help)
  			myprog_help
  			exit 0
-@@ -508,34 +578,41 @@ while [[ -n "${1}" ]] ; do
+@@ -509,34 +578,41 @@ while [[ -n "${1}" ]] ; do
  			;;
  		*)
  			echo "Error: Unknown option '${1}'." >&2
@@ -848,7 +849,7 @@ index 0d6af2c..fc9876e 100644
  	# do only a akmod package
  	print_akmodtemplate
  	print_akmodmeta
-@@ -543,9 +620,9 @@ else
+@@ -544,9 +620,9 @@ else
  	# seems we are on out own to decide for which kernels to build
  
  	# we need more sanity checks in this case
@@ -860,7 +861,7 @@ index 0d6af2c..fc9876e 100644
  		error_out 2 "buildsys-build-${repo}-kerneldevpkgs not found"
  	fi
  
-@@ -554,13 +631,16 @@ else
+@@ -555,13 +631,16 @@ else
  
  	# filterfile to filter list of kernels?
  	if [[ -n "${filterfile}" ]] ; then
