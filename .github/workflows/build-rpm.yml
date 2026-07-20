@@ -115,7 +115,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           sparse-checkout: |
-            *.patch
+            patches/**
           sparse-checkout-cone-mode: false
       - name: Download source
         if: steps.check-kmod-release.outcome != 'success' || steps.check-akmod-release.outcome != 'success'
@@ -126,7 +126,8 @@ jobs:
       - name: Apply patches
         if: steps.check-kmod-release.outcome != 'success' || steps.check-akmod-release.outcome != 'success'
         run: |
-          for patch in *.patch
+          shopt -s nullglob
+          for patch in patches/*.patch patches/$ZFS_VERSION/*.patch
           do
             patch -p1 -d zfs-$ZFS_VERSION < $patch
             [[ $? -eq 0 ]] || exit 1

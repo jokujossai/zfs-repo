@@ -46,7 +46,7 @@ kmod-zfs: src/zfs-$(ZFS_VERSION).tar.gz src/kernel-$(KERNEL_VERSION).rpm src/ker
 		src/kernel-modules-core-$(KERNEL_VERSION).rpm
 	dnf install -y -q --skip-broken gcc make autoconf automake libtool rpm-build libtirpc-devel libblkid-devel libuuid-devel libudev-devel openssl-devel zlib-devel libaio-devel libattr-devel elfutils-libelf-devel python3 python3-devel python3-setuptools python3-cffi libffi-devel git ncompress libcurl-devel python3-packaging dkms
 	tar -xzf src/zfs-$(ZFS_VERSION).tar.gz -C /tmp
-	$(foreach file, $(sort $(wildcard *.patch)), patch -p1 -d /tmp/zfs-$(ZFS_VERSION) < $(file);)
+	$(foreach file, $(sort $(wildcard patches/*.patch) $(wildcard patches/$(ZFS_VERSION)/*.patch)), patch -p1 -d /tmp/zfs-$(ZFS_VERSION) < $(file);)
 	cd /tmp/zfs-$(ZFS_VERSION) \
 		&& ./autogen.sh \
 		&& ./configure \

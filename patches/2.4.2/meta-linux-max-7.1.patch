@@ -1,0 +1,14 @@
+Temporary backport of openzfs a35e8d892628 (Linux 7.1 compat: META, PR #18682).
+Bumps Linux-Maximum so ZFS 2.4.x builds against kernel 7.1.x. Remove once a
+ZFS release ships Linux-Maximum >= 7.1 natively.
+
+diff --git a/META b/META
+--- a/META
++++ b/META
+@@ -6,5 +6,5 @@ Release:       1
+ Release-Tags:  relext
+ License:       CDDL
+ Author:        OpenZFS
+-Linux-Maximum: 7.0
++Linux-Maximum: 7.1
+ Linux-Minimum: 4.18
