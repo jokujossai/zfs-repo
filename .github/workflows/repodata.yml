@@ -33,10 +33,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          releases="$(gh api "repos/${{ github.repository }}/releases" --paginate | jq -r ".[].id")"
-          for release in $releases
+          tags="$(gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[].tag_name')"
+          for tag in $tags
           do
-            tag="$(gh api "repos/${{ github.repository }}/releases/$release" | jq -r ".tag_name")"
             if [[ "$tag" = "repodata" ]]; then continue; fi
             echo "Tag: $tag"
             mkdir -p "$tag"
