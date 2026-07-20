@@ -6,7 +6,7 @@ diff --git a/scripts/kmodtool b/scripts/kmodtool
  nohup ${prefix}/sbin/akmods --from-akmod-posttrans --akmod ${kmodname} &> /dev/null &
  
 +%post -n akmod-${kmodname}
-+[ -x /usr/sbin/akmods-ostree-post ] && /usr/sbin/akmods-ostree-post ${kmodname} %{_usrsrc}/akmods/%{name}-%{version}-%{release}.src.rpm || :
++[ ! -x /usr/sbin/akmods-ostree-post ] || /usr/sbin/akmods-ostree-post ${kmodname} %{_usrsrc}/akmods/%{name}-%{version}-%{release}.src.rpm
 +
  %files -n akmod-${kmodname}
  %defattr(-,root,root,-)
